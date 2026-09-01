@@ -56,6 +56,7 @@
     }
     .nav-dropdown::before{content:"";position:absolute;left:0;right:0;top:-14px;height:14px}
     .nav-item:hover .nav-dropdown,.nav-item:focus-within .nav-dropdown{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}
+    .nav-item.dropdown-click-closed .nav-dropdown{opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,-8px)}
     .drop-kicker{font-size:8px;letter-spacing:.19em;text-transform:uppercase;color:var(--green-dark);padding:0 2px 10px;border-bottom:1px solid var(--line)}
     .drop-link{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:11px 2px;border-bottom:1px solid rgba(74,52,39,.07);font-family:var(--serif);font-size:18px}
     .drop-link:last-child{border-bottom:0}
@@ -1296,9 +1297,15 @@
     });
   }
 
+  document.querySelectorAll('.nav-item').forEach(item=>{
+    item.addEventListener('mouseleave',()=>item.classList.remove('dropdown-click-closed'));
+  });
+
   document.querySelectorAll('[data-route]').forEach(el=>{
     el.addEventListener('click',e=>{
       e.preventDefault();
+      const navItem=el.closest('.nav-item');
+      if(navItem) navItem.classList.add('dropdown-click-closed');
       const route=el.dataset.route;
       const target=el.dataset.target||'';
       history.replaceState(null,'','#'+route+(target?'/'+target:''));
