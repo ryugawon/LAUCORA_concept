@@ -1,0 +1,48 @@
+name: Apply nav click-close fix once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/nav-click-close-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch only nav dropdown click behavior
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          css_old = "    .nav-item:hover .nav-dropdown,.nav-item:focus-within .nav-dropdown{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}\n"
+          css_new = css_old + "    .nav-item.dropdown-click-closed .nav-dropdown{opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,-8px)}\n"
+          if s.count(css_old) != 1:
+              raise SystemExit('CSS anchor not found exactly once')
+          s = s.replace(css_old, css_new, 1)
+
+          js_old = "  document.querySelectorAll('[data-route]').forEach(el=>{\n    el.addEventListener('click',e=>{\n      e.preventDefault();\n      const route=el.dataset.route;\n"
+          js_new = "  document.querySelectorAll('.nav-item').forEach(item=>{\n    item.addEventListener('mouseleave',()=>item.classList.remove('dropdown-click-closed'));\n  });\n\n  document.querySelectorAll('[data-route]').forEach(el=>{\n    el.addEventListener('click',e=>{\n      e.preventDefault();\n      const navItem=el.closest('.nav-item');\n      if(navItem) navItem.classList.add('dropdown-click-closed');\n      const route=el.dataset.route;\n"
+          if s.count(js_old) != 1:
+              raise SystemExit('JS anchor not found exactly once')
+          s = s.replace(js_old, js_new, 1)
+
+          p.write_text(s, encoding='utf-8', newline='')
+          PY
+      - name: Commit fix and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/nav-click-close-once.yml
+          git add index.html
+          git diff --cached --check
+          git commit -m "Close nav dropdown immediately after menu click"
+          git push origin main
